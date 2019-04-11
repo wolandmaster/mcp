@@ -1,0 +1,22 @@
+music database lookup result format:
+
+{
+	id = 123456
+	artist = "album artist",
+	title = "album title",
+	year = 1900,
+	genre = "album genre",
+	cover = "cover url",
+	comment = "db name:" .. id,
+	tracklist = {
+		{
+			position = 1,
+			title = "track 1 title"
+		},
+		{
+			position = 2,
+			title = "track 2 title"
+		}
+	}
+}
+
