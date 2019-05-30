@@ -29,7 +29,9 @@ local function receive_headers(sock)
 	if err then return nil, err end
 	while line ~= "" do
 		local name, value = socket.skip(2, line:find("^(.-):%s*(.*)"))
-		if not (name and value) then return nil, "malformed reponse headers" end
+		if not (name and value) then
+			return nil, "malformed reponse headers"
+		end
 		headers[name:lower()] = value
 		line, err  = sock:receive()
 		if err then return nil, err end
@@ -46,8 +48,9 @@ local function receive_body(sock, length)
 	return table.concat(body)
 end
 
--- the socket.http lib is hardcode the "TE: trailers" and "Connection: close, TE" headers
--- to the http request. discogs is using http/2 protocol that does not support these headers
+-- the socket.http lib is hardcode the "TE: trailers"
+-- and "Connection: close, TE" headers to the http request.
+-- discogs is using http/2 protocol that does not support these headers
 local function request(host, port, uri)
 	local params = {
 		mode = "client",
@@ -71,40 +74,36 @@ local function request(host, port, uri)
 end
 
 local function discogs(action, arg)
-	return json.decode(request(DISCOGS, 443, "/" .. action .. table.to_qs(arg or {})))
+	local url = "/" .. action .. table.to_qs(arg or {})
+	return json.decode(request(DISCOGS, 443, url))
 end
 
 -------------------------
 -- P U B L I C   A P I --
 -------------------------
--- music database lookup result format:
---	{
---		id = 123456
---		artist = "album artist",
---		title = "album title",
---		year = 1900,
---		genre = "album genre",
---		cover = "cover url",
---		comment = "db name:" .. id,
---		tracklist = {
---			{
---				position = 1,
---				title = "track 1 title"
---			}
---		}
---	}
 function lookup(id)
+	local response = {}
 	local album = discogs("releases/" .. id,
 		{ token = config.discogs_token() })
-	album.artist = album.artists_sort
-	album.comment = "discogs:" .. album.id
-	album.genre = album.genres[1]
-	album.cover = album.images[1].uri
-	return album
+	local master = discogs("masters/" .. album.master_id,
+		{ token = config.discogs_token() })
+	local artist = discogs("artists/" .. master.artists[1].id,
+		{ token = config.discogs_token() })
+	return {
+		id = album.id,
+		artist = album.artists_sort,
+		title = master.title,
+		year = master.year,
+		comment = "discogs:" .. album.id,
+		genre = master.genres[1],
+		tracklist = table.ifilter(album.tracklist, function(value)
+			return value.type_ == "track"
+		end),
+		cover = master.images[1].uri,
+		artist_cover = artist.images[1].uri
+	}
 end
 
--- music database search result format:
--- returns lookup("best match id")
 function search(query, track_count)
 	io.write("looking for \"" .. query .. "\"...")
 	io.flush()

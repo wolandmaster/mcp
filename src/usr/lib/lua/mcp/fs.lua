@@ -18,8 +18,8 @@ function join_path(...)
 	return (table.concat({...}, "/"):gsub("/+", "/"))
 end
 
-function get_files(path, ext)
-	local files = {} 
+function files(path, ext)
+	local files = {}
 	for entry in fs.dir(path) do
 		entry_path = path .. "/" .. entry
 		if fs.stat(entry_path, "type") == "reg"
@@ -32,6 +32,18 @@ function get_files(path, ext)
 	return files
 end
 
+function last_access(...)
+	return nixio.fs.stat(join_path(...), "atime")
+end
+
+function last_modification(...)
+	return nixio.fs.stat(join_path(...), "mtime")
+end
+
+function exists(...)
+	return nixio.fs.stat(join_path(...), "type") == "reg"
+end
+
 function sort_by_number(left, right)
 	return tonumber(left:match("%d+")) < tonumber(right:match("%d+"))
 end
@@ -39,10 +51,12 @@ end
 function copy(source, dest, header_offset, footer_offset)
 	header_offset = header_offset or 0
 	footer_offset = footer_offset or 0
-	source_fd = type(source) == "string" and nixio.open(source, "r") or source
+	source_fd = type(source) == "string"
+		and nixio.open(source, "r") or source
 	dest_fd = type(dest) == "string" and nixio.open(dest, "w") or dest
 	source_fd:seek(header_offset, "set")
-	source_fd:copyz(dest_fd, source_fd:stat("size") - header_offset - footer_offset)
+	source_fd:copyz(dest_fd,
+		source_fd:stat("size") - header_offset - footer_offset)
 	if type(dest) == "string" then
 		dest_fd:close()
 	end

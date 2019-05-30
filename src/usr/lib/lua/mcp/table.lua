@@ -15,3 +15,13 @@ function table.to_qs(arg)
 	return "?" .. table.concat(qs, "&")
 end
 
+function table.ifilter(array, func)
+	local out = {}
+	for key, value in ipairs(array) do
+		if func(value, key, array) then
+			table.insert(out, value)
+		end
+	end
+	return out
+end
+
